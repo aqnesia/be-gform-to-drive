@@ -62,7 +62,14 @@ func (c *Client) SendFailure(ctx context.Context, nama, tahap, errMsg string, t 
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if c.authToken != "" {
-		req.Header.Set("Authorization", "Bearer "+c.authToken)
+		if strings.HasPrefix(c.authToken, "Basic ") || strings.HasPrefix(c.authToken, "Bearer ") {
+			req.Header.Set("Authorization", c.authToken)
+		} else if strings.Contains(c.authToken, ":") {
+			parts := strings.SplitN(c.authToken, ":", 2)
+			req.SetBasicAuth(parts[0], parts[1])
+		} else {
+			req.Header.Set("Authorization", "Bearer "+c.authToken)
+		}
 	}
 
 	resp, err := c.httpClient.Do(req)
