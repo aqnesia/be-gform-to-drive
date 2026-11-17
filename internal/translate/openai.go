@@ -73,22 +73,50 @@ func (o *OpenAIProvider) Translate(ctx context.Context, payload *TranslationPayl
 
 	url := fmt.Sprintf("%s/chat/completions", o.baseURL)
 	slog.Info("memanggil LLM API", "provider", o.Name(), "base_url", o.baseURL, "model", o.model)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBytes))
-	if err != nil {
-		return nil, fmt.Errorf("gagal membuat request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+o.apiKey)
 
-	resp, err := o.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("gagal memanggil openai api: %w", err)
-	}
-	defer resp.Body.Close()
+	const maxRetry = 3
+	var bodyBytes []byte
+	var lastStatus int
 
-	bodyBytes, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
+	for attempt := 1; attempt <= maxRetry; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBytes))
+		if err != nil {
+			return nil, fmt.Errorf("gagal membuat request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+o.apiKey)
+
+		resp, err := o.httpClient.Do(req)
+		if err != nil {
+			if attempt < maxRetry {
+				slog.Warn("LLM request gagal, mencoba ulang", "attempt", attempt, "error", err)
+				time.Sleep(time.Duration(attempt*5) * time.Second)
+				continue
+			}
+			return nil, fmt.Errorf("gagal memanggil openai api: %w", err)
+		}
+
+		bodyBytes, _ = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		lastStatus = resp.StatusCode
+
+		if resp.StatusCode == http.StatusOK {
+			break
+		}
+
+		// 503 / 429 = overload, coba lagi
+		if (resp.StatusCode == 503 || resp.StatusCode == 429) && attempt < maxRetry {
+			waitSec := time.Duration(attempt*10) * time.Second
+			slog.Warn("LLM sedang overload, menunggu dan mencoba ulang", "attempt", attempt, "status", resp.StatusCode, "wait", waitSec)
+			time.Sleep(waitSec)
+			continue
+		}
+
 		return nil, fmt.Errorf("openai api error (status %d): %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	if lastStatus != http.StatusOK {
+		return nil, fmt.Errorf("openai api error setelah %d percobaan (status %d): %s", maxRetry, lastStatus, string(bodyBytes))
 	}
 
 	var openAIResp struct {
