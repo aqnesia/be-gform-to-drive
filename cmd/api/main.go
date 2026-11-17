@@ -34,6 +34,9 @@ func main() {
 			slog.Warn("database connection failed, running without database persistence", "error", err)
 		} else {
 			defer db.Close()
+			if err := db.AutoMigrate(context.Background()); err != nil {
+				slog.Error("auto-migrate database gagal", "error", err)
+			}
 			repo = job.NewRepository(db.Pool)
 		}
 	} else {
