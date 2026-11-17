@@ -7,22 +7,29 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
 type OpenAIProvider struct {
 	apiKey     string
 	model      string
+	baseURL    string
 	httpClient *http.Client
 }
 
-func NewOpenAIProvider(apiKey, model string) *OpenAIProvider {
+func NewOpenAIProvider(apiKey, model, baseURL string) *OpenAIProvider {
 	if model == "" {
 		model = "gpt-4o-mini"
 	}
+	if baseURL == "" {
+		baseURL = "https://api.openai.com/v1"
+	}
+	baseURL = strings.TrimRight(baseURL, "/")
 	return &OpenAIProvider{
-		apiKey: apiKey,
-		model:  model,
+		apiKey:  apiKey,
+		model:   model,
+		baseURL: baseURL,
 		httpClient: &http.Client{
 			Timeout: 45 * time.Second,
 		},
@@ -63,7 +70,8 @@ func (o *OpenAIProvider) Translate(ctx context.Context, payload *TranslationPayl
 		return nil, fmt.Errorf("gagal marshal request openai: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.openai.com/v1/chat/completions", bytes.NewReader(reqBytes))
+	url := fmt.Sprintf("%s/chat/completions", o.baseURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBytes))
 	if err != nil {
 		return nil, fmt.Errorf("gagal membuat request: %w", err)
 	}

@@ -29,7 +29,7 @@ func NewService(cfg *config.Config, glossaryPath string) (*Service, error) {
 	var p Provider
 	switch strings.ToLower(cfg.LLMProvider) {
 	case "openai":
-		p = NewOpenAIProvider(cfg.LLMAPIKey, cfg.LLMModel)
+		p = NewOpenAIProvider(cfg.LLMAPIKey, cfg.LLMModel, cfg.LLMBaseURL)
 	case "gemini":
 		fallthrough
 	default:
