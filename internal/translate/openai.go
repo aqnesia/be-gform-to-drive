@@ -1,0 +1,108 @@
+package translate
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+)
+
+type OpenAIProvider struct {
+	apiKey     string
+	model      string
+	httpClient *http.Client
+}
+
+func NewOpenAIProvider(apiKey, model string) *OpenAIProvider {
+	if model == "" {
+		model = "gpt-4o-mini"
+	}
+	return &OpenAIProvider{
+		apiKey: apiKey,
+		model:  model,
+		httpClient: &http.Client{
+			Timeout: 45 * time.Second,
+		},
+	}
+}
+
+func (o *OpenAIProvider) Name() string          { return "openai" }
+func (o *OpenAIProvider) Model() string         { return o.model }
+func (o *OpenAIProvider) PromptVersion() string { return PromptVersion }
+
+func (o *OpenAIProvider) Translate(ctx context.Context, payload *TranslationPayload, glossaryPrompt string) (*TranslationResponse, error) {
+	if o.apiKey == "" {
+		return nil, fmt.Errorf("openai api key kosong")
+	}
+
+	payloadJSON, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("gagal marshal payload: %w", err)
+	}
+
+	systemPrompt := BuildSystemPrompt(glossaryPrompt)
+	userPrompt := fmt.Sprintf("Data peserta yang harus diterjemahkan ke bahasa Jepang:\n%s", string(payloadJSON))
+
+	reqBody := map[string]interface{}{
+		"model": o.model,
+		"messages": []map[string]string{
+			{"role": "system", "content": systemPrompt},
+			{"role": "user", "content": userPrompt},
+		},
+		"response_format": map[string]string{
+			"type": "json_object",
+		},
+		"temperature": 0.1,
+	}
+
+	reqBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("gagal marshal request openai: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.openai.com/v1/chat/completions", bytes.NewReader(reqBytes))
+	if err != nil {
+		return nil, fmt.Errorf("gagal membuat request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+o.apiKey)
+
+	resp, err := o.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("gagal memanggil openai api: %w", err)
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("openai api error (status %d): %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var openAIResp struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+
+	if err := json.Unmarshal(bodyBytes, &openAIResp); err != nil {
+		return nil, fmt.Errorf("gagal decode response openai: %w", err)
+	}
+
+	if len(openAIResp.Choices) == 0 {
+		return nil, fmt.Errorf("tidak ada pilihan balasan dari openai")
+	}
+
+	rawText := cleanJSONMarkdown(openAIResp.Choices[0].Message.Content)
+
+	var result TranslationResponse
+	if err := json.Unmarshal([]byte(rawText), &result); err != nil {
+		return nil, fmt.Errorf("gagal unmarshal output json openai: %w (raw: %s)", err, rawText)
+	}
+
+	return &result, nil
+}

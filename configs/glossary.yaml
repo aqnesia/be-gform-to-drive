@@ -1,0 +1,33 @@
+# Istilah baku (glossary) terjemahan Indonesia -> Jepang
+glossary:
+  # Agama
+  "Islam": "イスラム教"
+  "Kristen": "キリスト教"
+  "Katolik": "カトリック"
+  "Hindu": "ヒンドゥー教"
+  "Buddha": "仏教"
+
+  # Status Pernikahan
+  "Belum Menikah": "未婚"
+  "Lajang": "未婚"
+  "Menikah": "既婚"
+  "Cerai": "離婚"
+
+  # Pekerjaan Keluarga Baku
+  "Petani": "農業"
+  "Buruh Tani": "農業"
+  "Ibu Rumah Tangga": "主婦"
+  "Karyawan Swasta": "会社員"
+  "Buruh": "作業員"
+  "Buruh Pabrik": "工場作業員"
+  "Pedagang": "商人"
+  "Wiraswasta": "自営業"
+  "PNS": "公務員"
+  "Pegawai Negeri": "公務員"
+  "Guru": "教師"
+  "Pelajar": "生徒"
+  "Siswa": "生徒"
+  "Mahasiswa": "大学生"
+  "Tidak Bekerja": "無職"
+  "Meninggal": "他界"
+  "Almarhum": "他界"

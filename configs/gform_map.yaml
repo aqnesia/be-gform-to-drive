@@ -1,0 +1,7 @@
+# Pemetaan judul pertanyaan Google Form ke nama field internal backend
+# Format:
+# "<Judul Pertanyaan GForm>": "<field_internal>"
+# Contoh:
+# "Nama Lengkap": "nama_romaji"
+# "Tanggal Lahir": "tanggal_lahir"
+

@@ -1,0 +1,19 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Environment variables
+.env
+
+# Temporary generated files
+tmp/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+

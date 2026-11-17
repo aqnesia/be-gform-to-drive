@@ -1,0 +1,7 @@
+# Pemetaan field hasil normalisasi/terjemahan ke alamat sel template Excel (sheet: "CV Kosong")
+# Format: <field_name>: <excel_cell>
+# Contoh:
+# nama_katakana: "D5"
+# nama_romaji: "D6"
+# tanggal_lahir: "C11"
+
