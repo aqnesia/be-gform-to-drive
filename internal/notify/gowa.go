@@ -45,8 +45,13 @@ func (c *Client) SendFailure(ctx context.Context, nama, tahap, errMsg string, t 
 		nama, tahap, t.Format("02/01/2006 15:04:05 WIB"), errMsg,
 	)
 
+	targetPhone := strings.TrimSpace(c.adminNumber)
+	if !strings.Contains(targetPhone, "@") {
+		targetPhone = targetPhone + "@s.whatsapp.net"
+	}
+
 	reqBody := map[string]interface{}{
-		"phone":   c.adminNumber,
+		"phone":   targetPhone,
 		"message": pesan,
 	}
 
@@ -55,7 +60,7 @@ func (c *Client) SendFailure(ctx context.Context, nama, tahap, errMsg string, t 
 		return fmt.Errorf("gagal marshal pesan gowa: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/send-message", c.baseURL)
+	url := fmt.Sprintf("%s/send/message", c.baseURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBytes))
 	if err != nil {
 		return fmt.Errorf("gagal membuat request notifikasi gowa: %w", err)
@@ -84,6 +89,6 @@ func (c *Client) SendFailure(ctx context.Context, nama, tahap, errMsg string, t 
 		return fmt.Errorf("gowa error status: %d", resp.StatusCode)
 	}
 
-	slog.Info("notifikasi kegagalan berhasil dikirim ke whatsapp admin", "target", c.adminNumber)
+	slog.Info("notifikasi kegagalan berhasil dikirim ke whatsapp admin", "target", targetPhone)
 	return nil
 }
