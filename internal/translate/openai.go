@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -31,7 +32,7 @@ func NewOpenAIProvider(apiKey, model, baseURL string) *OpenAIProvider {
 		model:   model,
 		baseURL: baseURL,
 		httpClient: &http.Client{
-			Timeout: 45 * time.Second,
+			Timeout: 180 * time.Second,
 		},
 	}
 }
@@ -71,6 +72,7 @@ func (o *OpenAIProvider) Translate(ctx context.Context, payload *TranslationPayl
 	}
 
 	url := fmt.Sprintf("%s/chat/completions", o.baseURL)
+	slog.Info("memanggil LLM API", "provider", o.Name(), "base_url", o.baseURL, "model", o.model)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBytes))
 	if err != nil {
 		return nil, fmt.Errorf("gagal membuat request: %w", err)
