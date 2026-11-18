@@ -42,10 +42,7 @@ func GenerateCV(templatePath string, cv *student.CVData, outputPath string) erro
 		}
 	}
 
-	// 0. Nomor Registrasi / Urut pada Kotak Kuning (G1:G2)
-	if cv.NomorRegistrasi != "" {
-		setVal("G1", cv.NomorRegistrasi)
-	}
+	// 0. Nomor Registrasi pada Kotak Kuning (G1:G2) dibiarkan kosong sesuai permintaan revisi
 
 	// 1. Tanggal Pembuatan (作成日 - G4) sesuai waktu submit
 	submitTime := cv.SubmitTime
@@ -76,9 +73,14 @@ func GenerateCV(templatePath string, cv *student.CVData, outputPath string) erro
 	setVal("C7", cv.NamaKatakana)
 	setVal("C8", cv.NamaRomaji)
 
-	// Format Panggilan (Katakana atas, Romaji kapital bawah pada G8)
-	if cv.Panggilan != "" {
-		setVal("G8", cv.Panggilan)
+	// Format Panggilan: G7 untuk Katakana, G8 untuk Romaji (persis sejajar dengan C7 & C8 Nama Lengkap)
+	if cv.PanggilanKatakana != "" {
+		setVal("G7", cv.PanggilanKatakana)
+	}
+	if cv.PanggilanRomaji != "" {
+		setVal("G8", strings.ToUpper(cv.PanggilanRomaji))
+	} else if cv.Panggilan != "" && !strings.Contains(cv.Panggilan, "\n") {
+		setVal("G8", strings.ToUpper(cv.Panggilan))
 	}
 
 	// Format Tanggal Lahir (C11)
@@ -125,12 +127,6 @@ func GenerateCV(templatePath string, cv *student.CVData, outputPath string) erro
 		setVal(fmt.Sprintf("G%d", row), edu.Periode)
 	}
 
-	// Rapikan font style periode pekerjaan: samakan style G37 dan G38 dengan G36 agar tidak berantakan
-	styleG36, err := f.GetCellStyle(sheetName, "G36")
-	if err == nil && styleG36 != 0 {
-		_ = f.SetCellStyle(sheetName, "G37", "G37", styleG36)
-		_ = f.SetCellStyle(sheetName, "G38", "G38", styleG36)
-	}
 
 	// 5. Riwayat Pekerjaan (Maksimal 3 baris: 36, 37, 38)
 	workRows := []int{36, 37, 38}

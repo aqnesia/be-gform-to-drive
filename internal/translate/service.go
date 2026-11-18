@@ -96,26 +96,25 @@ func (s *Service) TranslateCV(ctx context.Context, cv *student.CVData) (*student
 	}
 
 	// Terapkan hasil terjemahan
-	if resp.NamaKatakana != "" {
+	// Jika user upload sudah mengisi NamaKatakana, pertahankan input user; hanya pakai LLM jika belum diisi
+	if strings.TrimSpace(cv.NamaKatakana) == "" && resp.NamaKatakana != "" {
 		cv.NamaKatakana = resp.NamaKatakana
 	}
 
-	// 1. Format nama panggilan disamakan dengan nama lengkap (Katakana atas, Romaji kapital bawah)
-	katakana := strings.TrimSpace(resp.Panggilan)
-	if katakana == "" {
-		katakana = strings.TrimSpace(cv.PanggilanKatakana)
+	// Format nama panggilan: pertahankan jika sudah diisi di file upload
+	if strings.TrimSpace(cv.PanggilanKatakana) == "" && resp.Panggilan != "" {
+		cv.PanggilanKatakana = resp.Panggilan
 	}
-	romaji := strings.TrimSpace(cv.PanggilanRomaji)
-	if romaji == "" {
+	if strings.TrimSpace(cv.PanggilanRomaji) == "" {
 		fields := strings.Fields(cv.NamaRomaji)
 		if len(fields) > 0 {
-			romaji = fields[0]
+			cv.PanggilanRomaji = fields[0]
 		}
 	}
-	if katakana != "" && romaji != "" {
-		cv.Panggilan = fmt.Sprintf("%s\n%s", katakana, strings.ToUpper(romaji))
-	} else if katakana != "" {
-		cv.Panggilan = katakana
+	if cv.PanggilanKatakana != "" && cv.PanggilanRomaji != "" {
+		cv.Panggilan = fmt.Sprintf("%s\n%s", cv.PanggilanKatakana, strings.ToUpper(cv.PanggilanRomaji))
+	} else if cv.PanggilanKatakana != "" {
+		cv.Panggilan = cv.PanggilanKatakana
 	}
 
 	if resp.TempatLahir != "" {
