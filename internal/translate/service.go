@@ -48,16 +48,11 @@ func (s *Service) TranslateCV(ctx context.Context, cv *student.CVData) (*student
 		return cv, "none", "none", PromptVersion, nil
 	}
 
-	// Siapkan payload untuk LLM
+	// Siapkan payload esensial untuk LLM (sangat hemat token)
 	payload := &TranslationPayload{
 		NamaRomaji:     cv.NamaRomaji,
-		Panggilan:      cv.Panggilan,
+		Panggilan:      cv.PanggilanKatakana,
 		TempatLahir:    cv.TempatLahir,
-		Alamat:         cv.Alamat,
-		Domisili:       cv.Domisili,
-		Keahlian:       cv.Keahlian,
-		Kelebihan:      cv.Kelebihan,
-		Kekurangan:     cv.Kekurangan,
 		Hobi:           cv.Hobi,
 		TujuanJepang:   cv.TujuanJepang,
 		TargetTabungan: cv.TargetTabungan,
@@ -65,25 +60,28 @@ func (s *Service) TranslateCV(ctx context.Context, cv *student.CVData) (*student
 	}
 
 	for i, edu := range cv.Pendidikan {
-		payload.Pendidikan = append(payload.Pendidikan, EduPayload{
-			Index:   i,
-			Jurusan: edu.Jurusan,
-		})
+		if strings.TrimSpace(edu.Jurusan) != "" {
+			payload.Pendidikan = append(payload.Pendidikan, EduPayload{
+				Index:   i,
+				Jurusan: edu.Jurusan,
+			})
+		}
 	}
 
 	for i, job := range cv.Pekerjaan {
-		payload.Pekerjaan = append(payload.Pekerjaan, JobPayload{
-			Index:      i,
-			Perusahaan: job.Perusahaan,
-			Rincian:    job.Rincian,
-		})
+		if strings.TrimSpace(job.Rincian) != "" {
+			payload.Pekerjaan = append(payload.Pekerjaan, JobPayload{
+				Index:   i,
+				Rincian: job.Rincian,
+			})
+		}
 	}
 
 	for i, fam := range cv.Keluarga {
-		// Cek dulu apakah pekerjaan keluarga ada di kamus glosarium baku
+		// Cek dulu apakah pekerjaan keluarga ada di kamus glosarium baku lokal
 		if val, ok := s.glossary.Lookup(fam.Pekerjaan); ok {
 			cv.Keluarga[i].Pekerjaan = val
-		} else {
+		} else if strings.TrimSpace(fam.Pekerjaan) != "" {
 			payload.Keluarga = append(payload.Keluarga, FamilyPayload{
 				Index:     i,
 				Pekerjaan: fam.Pekerjaan,
@@ -91,13 +89,8 @@ func (s *Service) TranslateCV(ctx context.Context, cv *student.CVData) (*student
 		}
 	}
 
-	glossaryPrompt := ""
-	if s.glossary != nil {
-		glossaryPrompt = s.glossary.FormatPromptList()
-	}
-
-	// Panggil LLM
-	resp, err := s.provider.Translate(ctx, payload, glossaryPrompt)
+	// Panggil LLM dengan prompt ringkas
+	resp, err := s.provider.Translate(ctx, payload, "")
 	if err != nil {
 		return nil, "", "", "", fmt.Errorf("error terjemahan LLM (%s): %w", s.provider.Name(), err)
 	}

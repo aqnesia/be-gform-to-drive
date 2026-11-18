@@ -17,8 +17,6 @@ func (m *MockProvider) PromptVersion() string { return "v1.0" }
 func (m *MockProvider) Translate(ctx context.Context, payload *TranslationPayload, glossaryPrompt string) (*TranslationResponse, error) {
 	return &TranslationResponse{
 		NamaKatakana: "テスト・タロウ",
-		Kelebihan:    "真面目で勤勉",
-		Kekurangan:    "心配性",
 		Hobi:         "読書",
 		TujuanJepang: "スキルアップと貯金のため",
 	}, nil
