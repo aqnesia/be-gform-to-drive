@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -42,6 +43,8 @@ func Load() *Config {
 
 func getEnv(key, defaultVal string) string {
 	if val, ok := os.LookupEnv(key); ok && val != "" {
+		val = strings.TrimSpace(val)
+		val = strings.Trim(val, "\"'")
 		return val
 	}
 	return defaultVal

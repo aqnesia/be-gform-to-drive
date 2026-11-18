@@ -71,8 +71,15 @@ func (o *OpenAIProvider) Translate(ctx context.Context, payload *TranslationPayl
 		return nil, fmt.Errorf("gagal marshal request openai: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/chat/completions", o.baseURL)
-	slog.Info("memanggil LLM API", "provider", o.Name(), "base_url", o.baseURL, "model", o.model)
+	baseURL := strings.TrimRight(strings.TrimSpace(o.baseURL), "/")
+	baseURL = strings.TrimSuffix(baseURL, "/chat/completions")
+	url := fmt.Sprintf("%s/chat/completions", baseURL)
+	slog.Info("memanggil LLM API", "provider", o.Name(), "base_url", baseURL, "model", o.model)
+
+	cleanKey := strings.TrimSpace(o.apiKey)
+	cleanKey = strings.Trim(cleanKey, "\"'")
+	cleanKey = strings.TrimPrefix(cleanKey, "Bearer ")
+	cleanKey = strings.TrimSpace(cleanKey)
 
 	const maxRetry = 3
 	var bodyBytes []byte
@@ -84,7 +91,8 @@ func (o *OpenAIProvider) Translate(ctx context.Context, payload *TranslationPayl
 			return nil, fmt.Errorf("gagal membuat request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+o.apiKey)
+		req.Header.Set("Authorization", "Bearer "+cleanKey)
+		req.Header.Set("x-api-key", cleanKey)
 
 		resp, err := o.httpClient.Do(req)
 		if err != nil {

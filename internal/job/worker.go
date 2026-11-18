@@ -147,15 +147,25 @@ func (w *Worker) handleTask(task *JobTask) {
 	cv.ResponseID = task.ResponseID
 
 	// Normalisasi data baku
+	cv.Usia = student.NormalizeUsia(cv.Usia, cv.TanggalLahir, time.Now())
 	cv.JenisKelamin = student.NormalizeJenisKelamin(cv.JenisKelamin)
 	cv.TinggiBadan = student.NormalizeTinggi(cv.TinggiBadan)
 	cv.BeratBadan = student.NormalizeBerat(cv.BeratBadan)
 	cv.GolonganDarah = student.NormalizeGolonganDarah(cv.GolonganDarah)
 	cv.Agama = student.NormalizeAgama(cv.Agama)
 	cv.StatusPernikahan = student.NormalizeStatusNikah(cv.StatusPernikahan)
+	cv.MenyetirMobil = student.NormalizeMenyetir(cv.MenyetirMobil)
 	cv.Alkohol = student.NormalizeYaTidak(cv.Alkohol)
 	cv.Merokok = student.NormalizeYaTidak(cv.Merokok)
-	cv.TinggalBerkelompok = student.NormalizeYaTidak(cv.TinggalBerkelompok)
+	cv.TinggalBerkelompok = student.NormalizeTinggalBerkelompok(cv.TinggalBerkelompok)
+
+	for i := range cv.Pendidikan {
+		cv.Pendidikan[i].Periode = student.NormalizePeriode(cv.Pendidikan[i].Periode)
+	}
+
+	for i := range cv.Pekerjaan {
+		cv.Pekerjaan[i].Periode = student.NormalizePeriode(cv.Pekerjaan[i].Periode)
+	}
 
 	for i := range cv.Keluarga {
 		cv.Keluarga[i].Hubungan = student.NormalizeHubunganKeluarga(cv.Keluarga[i].Hubungan)
