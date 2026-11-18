@@ -106,27 +106,33 @@ func (s *Service) TranslateCV(ctx context.Context, cv *student.CVData) (*student
 	if resp.NamaKatakana != "" {
 		cv.NamaKatakana = resp.NamaKatakana
 	}
-	if resp.Panggilan != "" {
-		cv.Panggilan = resp.Panggilan
+
+	// 1. Format nama panggilan disamakan dengan nama lengkap (Katakana atas, Romaji kapital bawah)
+	katakana := strings.TrimSpace(resp.Panggilan)
+	if katakana == "" {
+		katakana = strings.TrimSpace(cv.PanggilanKatakana)
 	}
+	romaji := strings.TrimSpace(cv.PanggilanRomaji)
+	if romaji == "" {
+		fields := strings.Fields(cv.NamaRomaji)
+		if len(fields) > 0 {
+			romaji = fields[0]
+		}
+	}
+	if katakana != "" && romaji != "" {
+		cv.Panggilan = fmt.Sprintf("%s\n%s", katakana, strings.ToUpper(romaji))
+	} else if katakana != "" {
+		cv.Panggilan = katakana
+	}
+
 	if resp.TempatLahir != "" {
 		cv.TempatLahir = resp.TempatLahir
 	}
-	if resp.Alamat != "" {
-		cv.Alamat = resp.Alamat
-	}
-	if resp.Domisili != "" {
-		cv.Domisili = resp.Domisili
-	}
-	if resp.Keahlian != "" {
-		cv.Keahlian = resp.Keahlian
-	}
-	if resp.Kelebihan != "" {
-		cv.Kelebihan = resp.Kelebihan
-	}
-	if resp.Kekurangan != "" {
-		cv.Kekurangan = resp.Kekurangan
-	}
+
+	// Sesuai requirement:
+	// - Alamat (現住所): tetap gunakan bahasa Indonesia asli (jangan digenerate)
+	// - Keahlian (得意・特技), Kelebihan (長所), Kekurangan (短所): samakan dengan CV upload (jangan digenerate)
+
 	if resp.Hobi != "" {
 		cv.Hobi = resp.Hobi
 	}
@@ -148,9 +154,7 @@ func (s *Service) TranslateCV(ctx context.Context, cv *student.CVData) (*student
 
 	for _, jobResp := range resp.Pekerjaan {
 		if jobResp.Index >= 0 && jobResp.Index < len(cv.Pekerjaan) {
-			if jobResp.Perusahaan != "" {
-				cv.Pekerjaan[jobResp.Index].Perusahaan = jobResp.Perusahaan
-			}
+			// Sesuai requirement: Nama perusahaan jangan digenerate oleh AI
 			if jobResp.Rincian != "" {
 				cv.Pekerjaan[jobResp.Index].Rincian = jobResp.Rincian
 			}

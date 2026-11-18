@@ -1,17 +1,51 @@
-# Istilah baku (glossary) terjemahan Indonesia -> Jepang
+# Istilah baku (glossary / knowledge base) terjemahan Indonesia -> Jepang
 glossary:
   # Agama
   "Islam": "イスラム教"
+  "Muslim": "イスラム教"
   "Kristen": "キリスト教"
+  "Protestan": "キリスト教"
   "Katolik": "カトリック"
   "Hindu": "ヒンドゥー教"
   "Buddha": "仏教"
+  "Budha": "仏教"
+  "Konghucu": "儒教"
 
-  # Status Pernikahan
+  # Status Pernikahan (配偶者)
   "Belum Menikah": "未婚"
+  "Belum Kawin": "未婚"
   "Lajang": "未婚"
+  "Single": "未婚"
   "Menikah": "既婚"
+  "Sudah Menikah": "既婚"
+  "Kawin": "既婚"
   "Cerai": "離婚"
+  "Cerai Hidup": "離婚"
+  "Cerai Mati": "離婚"
+  "Duda": "離婚"
+  "Janda": "離婚"
+
+  # Menyetir Mobil (車の運転)
+  "Bisa": "できる"
+  "Bisa Menyetir": "できる"
+  "Punya SIM": "できる"
+  "Ada SIM": "できる"
+  "Tidak Bisa": "できない"
+  "Belum Bisa": "できない"
+  "Tidak Menyetir": "できない"
+
+  # Riwayat Tinggal Berkelompok (集団生活経験)
+  "Pernah": "有"
+  "Ada": "有"
+  "Tidak Pernah": "無"
+  "Belum Pernah": "無"
+  "Tidak Ada": "無"
+
+  # Alkohol (飲酒) & Merokok (タバコ)
+  "Ya": "有"
+  "Tidak": "無"
+  "Biasa": "有"
+  "Kadang-kadang": "有"
 
   # Pekerjaan Keluarga Baku
   "Petani": "農業"

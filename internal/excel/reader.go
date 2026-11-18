@@ -46,10 +46,28 @@ func Read(r io.Reader) (*student.CVData, error) {
 		return strings.TrimSpace(val)
 	}
 
+	rawPanggilan := getVal("G8")
+	var pKatakana, pRomaji string
+	if strings.Contains(rawPanggilan, "\n") {
+		parts := strings.SplitN(rawPanggilan, "\n", 2)
+		pKatakana = strings.TrimSpace(parts[0])
+		pRomaji = strings.TrimSpace(parts[1])
+	} else {
+		pKatakana = rawPanggilan
+		namaRomaji := getVal("C8")
+		fields := strings.Fields(namaRomaji)
+		if len(fields) > 0 {
+			pRomaji = fields[0]
+		}
+	}
+
 	cv := &student.CVData{
+		NomorRegistrasi:    getVal("G1"),
 		NamaRomaji:         getVal("C8"),
 		NamaKatakana:       getVal("C7"),
-		Panggilan:          getVal("G8"),
+		Panggilan:          rawPanggilan,
+		PanggilanKatakana:  pKatakana,
+		PanggilanRomaji:    pRomaji,
 		TanggalLahir:       getVal("C11"),
 		Usia:               getVal("G11"),
 		JenisKelamin:       getVal("A13"),
@@ -73,6 +91,26 @@ func Read(r io.Reader) (*student.CVData, error) {
 		TujuanJepang:       getVal("D23"),
 		TargetTabungan:     getVal("D24"),
 		RencanaPulang:      getVal("D25"),
+	}
+
+	if cv.NomorRegistrasi == "" {
+		cv.NomorRegistrasi = getVal("G2")
+	}
+
+	// Ekstrak Foto Peserta jika ada di dalam Excel
+	for r := 1; r <= 15; r++ {
+		for _, col := range []string{"A", "B", "C"} {
+			cell := fmt.Sprintf("%s%d", col, r)
+			pics, err := f.GetPictures(sheetName, cell)
+			if err == nil && len(pics) > 0 {
+				cv.FotoBytes = pics[0].File
+				cv.FotoExt = pics[0].Extension
+				break
+			}
+		}
+		if len(cv.FotoBytes) > 0 {
+			break
+		}
 	}
 
 	// Pendidikan (SD: 29, SMP: 30, SMA: 31, PT: 32)
@@ -126,6 +164,29 @@ func Read(r io.Reader) (*student.CVData, error) {
 				Pekerjaan: pekerjaan,
 				Usia:      usia,
 			})
+		}
+	}
+
+	// Hasil Ujian Awal (事前試験結果 - Baris 50-53 pada template input)
+	cv.HasilUjian = student.HasilUjianData{
+		Matematika:   getVal("A52"),
+		BahasaJepang: getVal("C52"),
+		PushUp:       getVal("D52"),
+		SitUp:        getVal("E52"),
+		Grip:         getVal("G52"),
+	}
+	// Fallback jika baris bergeser
+	if cv.HasilUjian.Matematika == "" && cv.HasilUjian.BahasaJepang == "" {
+		for r := 49; r <= 54; r++ {
+			vA := getVal(fmt.Sprintf("A%d", r))
+			if strings.Contains(vA, "点") || (len(vA) > 0 && vA[0] >= '0' && vA[0] <= '9') {
+				cv.HasilUjian.Matematika = vA
+				cv.HasilUjian.BahasaJepang = getVal(fmt.Sprintf("C%d", r))
+				cv.HasilUjian.PushUp = getVal(fmt.Sprintf("D%d", r))
+				cv.HasilUjian.SitUp = getVal(fmt.Sprintf("E%d", r))
+				cv.HasilUjian.Grip = getVal(fmt.Sprintf("G%d", r))
+				break
+			}
 		}
 	}
 
