@@ -46,24 +46,36 @@ func Read(r io.Reader) (*student.CVData, error) {
 		return strings.TrimSpace(val)
 	}
 
-	rawPanggilan := getVal("G8")
+	valG7 := getVal("G7")
+	valG8 := getVal("G8")
 	var pKatakana, pRomaji string
-	if strings.Contains(rawPanggilan, "\n") {
-		parts := strings.SplitN(rawPanggilan, "\n", 2)
+	if valG7 != "" {
+		pKatakana = valG7
+		pRomaji = valG8
+	} else if strings.Contains(valG8, "\n") {
+		parts := strings.SplitN(valG8, "\n", 2)
 		pKatakana = strings.TrimSpace(parts[0])
 		pRomaji = strings.TrimSpace(parts[1])
 	} else {
-		pKatakana = rawPanggilan
-		namaRomaji := getVal("C8")
+		pKatakana = valG8
+	}
+
+	namaRomaji := getVal("C8")
+	if pRomaji == "" {
 		fields := strings.Fields(namaRomaji)
 		if len(fields) > 0 {
 			pRomaji = fields[0]
 		}
 	}
 
+	rawPanggilan := valG8
+	if rawPanggilan == "" {
+		rawPanggilan = valG7
+	}
+
 	cv := &student.CVData{
 		NomorRegistrasi:    getVal("G1"),
-		NamaRomaji:         getVal("C8"),
+		NamaRomaji:         namaRomaji,
 		NamaKatakana:       getVal("C7"),
 		Panggilan:          rawPanggilan,
 		PanggilanKatakana:  pKatakana,
