@@ -111,6 +111,57 @@ func GenerateCV(templatePath string, cv *student.CVData, outputPath string) erro
 	setVal("G20", cv.TinggalBerkelompok)
 	setVal("C21", cv.Kekurangan)
 	setVal("G21", cv.Hobi)
+
+	// Pastikan garis pembatas horizontal di bawah 集団生活経験 (D20:F20) sama dengan sel di sebelahnya (C20 & A20)
+	fontSimSun := &excelize.Font{Family: "SimSun", Size: 10}
+	fillBlue := excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"DBE5F1"}}
+	alignCenter := &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true}
+
+	styleD20, errD20 := f.NewStyle(&excelize.Style{
+		Font: fontSimSun, Fill: fillBlue, Alignment: alignCenter,
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 7},
+		},
+	})
+	if errD20 == nil {
+		_ = f.SetCellStyle(sheetName, "D20", "D20", styleD20)
+	}
+
+	styleEF20, errEF20 := f.NewStyle(&excelize.Style{
+		Font: fontSimSun, Fill: fillBlue, Alignment: alignCenter,
+		Border: []excelize.Border{
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 7},
+		},
+	})
+	if errEF20 == nil {
+		_ = f.SetCellStyle(sheetName, "E20", "F20", styleEF20)
+	}
+
+	styleD21, errD21 := f.NewStyle(&excelize.Style{
+		Font: fontSimSun, Fill: fillBlue, Alignment: alignCenter,
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 7},
+			{Type: "bottom", Color: "000000", Style: 7},
+		},
+	})
+	if errD21 == nil {
+		_ = f.SetCellStyle(sheetName, "D21", "D21", styleD21)
+	}
+
+	styleEF21, errEF21 := f.NewStyle(&excelize.Style{
+		Font: fontSimSun, Fill: fillBlue, Alignment: alignCenter,
+		Border: []excelize.Border{
+			{Type: "top", Color: "000000", Style: 7},
+			{Type: "bottom", Color: "000000", Style: 7},
+		},
+	})
+	if errEF21 == nil {
+		_ = f.SetCellStyle(sheetName, "E21", "F21", styleEF21)
+	}
 	setVal("D23", cv.TujuanJepang)
 	setVal("D24", cv.TargetTabungan)
 	setVal("D25", cv.RencanaPulang)
@@ -138,6 +189,35 @@ func GenerateCV(templatePath string, cv *student.CVData, outputPath string) erro
 		setVal(fmt.Sprintf("A%d", row), work.Perusahaan)
 		setVal(fmt.Sprintf("D%d", row), work.Rincian)
 		setVal(fmt.Sprintf("G%d", row), work.Periode)
+	}
+
+	// Pastikan border kiri Riwayat Pekerjaan (A36:A38) solid tebal sedang (style 2) sejajar dengan A35
+	for _, row := range workRows {
+		cell := fmt.Sprintf("A%d", row)
+		sID, err := f.GetCellStyle(sheetName, cell)
+		if err == nil && sID != 0 {
+			st, errSt := f.GetStyle(sID)
+			if errSt == nil && st != nil {
+				hasLeft := false
+				for j, b := range st.Border {
+					if b.Type == "left" {
+						st.Border[j].Style = 2
+						st.Border[j].Color = "000000"
+						hasLeft = true
+						break
+					}
+				}
+				if !hasLeft {
+					st.Border = append(st.Border, excelize.Border{
+						Type: "left", Color: "000000", Style: 2,
+					})
+				}
+				newS, errNew := f.NewStyle(st)
+				if errNew == nil {
+					_ = f.SetCellStyle(sheetName, cell, cell, newS)
+				}
+			}
+		}
 	}
 
 	// 6. Susunan Keluarga (Maksimal 4 baris: 43, 44, 45, 46)
