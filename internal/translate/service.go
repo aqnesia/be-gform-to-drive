@@ -28,6 +28,15 @@ func NewService(cfg *config.Config, glossaryPath string) (*Service, error) {
 
 	var p Provider
 	switch strings.ToLower(cfg.LLMProvider) {
+	case "google", "gtranslate", "google-translate":
+		baseURL := cfg.GoogleTranslateURL
+		if baseURL == "" {
+			baseURL = cfg.LLMBaseURL
+		}
+		if baseURL == "" {
+			baseURL = "http://lpk_aqnesia_g-translate-service:8080"
+		}
+		p = NewGoogleTranslateProvider(baseURL)
 	case "openai":
 		p = NewOpenAIProvider(cfg.LLMAPIKey, cfg.LLMModel, cfg.LLMBaseURL)
 	case "gemini":

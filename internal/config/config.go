@@ -13,6 +13,7 @@ type Config struct {
 	LLMModel          string
 	LLMAPIKey         string
 	LLMBaseURL        string
+	GoogleTranslateURL string
 	DriveScriptURL    string
 	DriveScriptSecret string
 	GoWAURL           string
@@ -31,6 +32,7 @@ func Load() *Config {
 		LLMModel:          getEnv("LLM_MODEL", "gemini-2.5-flash"),
 		LLMAPIKey:         getEnv("LLM_API_KEY", ""),
 		LLMBaseURL:        getEnv("LLM_BASE_URL", ""),
+		GoogleTranslateURL: getEnv("GOOGLE_TRANSLATE_URL", "http://lpk_aqnesia_g-translate-service:8080"),
 		DriveScriptURL:    getEnv("DRIVE_SCRIPT_URL", ""),
 		DriveScriptSecret: getEnv("DRIVE_SCRIPT_SECRET", ""),
 		GoWAURL:           getEnv("GOWA_URL", ""),
