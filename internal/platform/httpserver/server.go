@@ -22,6 +22,7 @@ func New(port string, webhookSecret string, repo *job.Repository, worker *job.Wo
 	healthHandler := health.NewHandler()
 	webhookHandler := webhook.NewHandler(webhookSecret, repo, worker)
 
+	mux.Handle("GET /", healthHandler)
 	mux.Handle("GET /health", healthHandler)
 	mux.Handle("POST /api/webhook/gform", webhookHandler)
 

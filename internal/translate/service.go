@@ -28,8 +28,17 @@ func NewService(cfg *config.Config, glossaryPath string) (*Service, error) {
 
 	var p Provider
 	switch strings.ToLower(cfg.LLMProvider) {
+	case "google", "gtranslate", "google-translate":
+		baseURL := cfg.GoogleTranslateURL
+		if baseURL == "" {
+			baseURL = cfg.LLMBaseURL
+		}
+		if baseURL == "" {
+			baseURL = "http://lpk_aqnesia_g-translate-service:8080"
+		}
+		p = NewGoogleTranslateProvider(baseURL)
 	case "openai":
-		p = NewOpenAIProvider(cfg.LLMAPIKey, cfg.LLMModel)
+		p = NewOpenAIProvider(cfg.LLMAPIKey, cfg.LLMModel, cfg.LLMBaseURL)
 	case "gemini":
 		fallthrough
 	default:
@@ -48,16 +57,11 @@ func (s *Service) TranslateCV(ctx context.Context, cv *student.CVData) (*student
 		return cv, "none", "none", PromptVersion, nil
 	}
 
-	// Siapkan payload untuk LLM
+	// Siapkan payload esensial untuk LLM (sangat hemat token)
 	payload := &TranslationPayload{
 		NamaRomaji:     cv.NamaRomaji,
-		Panggilan:      cv.Panggilan,
+		Panggilan:      cv.PanggilanKatakana,
 		TempatLahir:    cv.TempatLahir,
-		Alamat:         cv.Alamat,
-		Domisili:       cv.Domisili,
-		Keahlian:       cv.Keahlian,
-		Kelebihan:      cv.Kelebihan,
-		Kekurangan:     cv.Kekurangan,
 		Hobi:           cv.Hobi,
 		TujuanJepang:   cv.TujuanJepang,
 		TargetTabungan: cv.TargetTabungan,
@@ -65,25 +69,28 @@ func (s *Service) TranslateCV(ctx context.Context, cv *student.CVData) (*student
 	}
 
 	for i, edu := range cv.Pendidikan {
-		payload.Pendidikan = append(payload.Pendidikan, EduPayload{
-			Index:   i,
-			Jurusan: edu.Jurusan,
-		})
+		if strings.TrimSpace(edu.Jurusan) != "" {
+			payload.Pendidikan = append(payload.Pendidikan, EduPayload{
+				Index:   i,
+				Jurusan: edu.Jurusan,
+			})
+		}
 	}
 
 	for i, job := range cv.Pekerjaan {
-		payload.Pekerjaan = append(payload.Pekerjaan, JobPayload{
-			Index:      i,
-			Perusahaan: job.Perusahaan,
-			Rincian:    job.Rincian,
-		})
+		if strings.TrimSpace(job.Rincian) != "" {
+			payload.Pekerjaan = append(payload.Pekerjaan, JobPayload{
+				Index:   i,
+				Rincian: job.Rincian,
+			})
+		}
 	}
 
 	for i, fam := range cv.Keluarga {
-		// Cek dulu apakah pekerjaan keluarga ada di kamus glosarium baku
+		// Cek dulu apakah pekerjaan keluarga ada di kamus glosarium baku lokal
 		if val, ok := s.glossary.Lookup(fam.Pekerjaan); ok {
 			cv.Keluarga[i].Pekerjaan = val
-		} else {
+		} else if strings.TrimSpace(fam.Pekerjaan) != "" {
 			payload.Keluarga = append(payload.Keluarga, FamilyPayload{
 				Index:     i,
 				Pekerjaan: fam.Pekerjaan,
@@ -91,42 +98,42 @@ func (s *Service) TranslateCV(ctx context.Context, cv *student.CVData) (*student
 		}
 	}
 
-	glossaryPrompt := ""
-	if s.glossary != nil {
-		glossaryPrompt = s.glossary.FormatPromptList()
-	}
-
-	// Panggil LLM
-	resp, err := s.provider.Translate(ctx, payload, glossaryPrompt)
+	// Panggil LLM dengan prompt ringkas
+	resp, err := s.provider.Translate(ctx, payload, "")
 	if err != nil {
 		return nil, "", "", "", fmt.Errorf("error terjemahan LLM (%s): %w", s.provider.Name(), err)
 	}
 
 	// Terapkan hasil terjemahan
-	if resp.NamaKatakana != "" {
+	// Jika user upload sudah mengisi NamaKatakana, pertahankan input user; hanya pakai LLM jika belum diisi
+	if strings.TrimSpace(cv.NamaKatakana) == "" && resp.NamaKatakana != "" {
 		cv.NamaKatakana = resp.NamaKatakana
 	}
-	if resp.Panggilan != "" {
-		cv.Panggilan = resp.Panggilan
+
+	// Format nama panggilan: pertahankan jika sudah diisi di file upload
+	if strings.TrimSpace(cv.PanggilanKatakana) == "" && resp.Panggilan != "" {
+		cv.PanggilanKatakana = resp.Panggilan
 	}
+	if strings.TrimSpace(cv.PanggilanRomaji) == "" {
+		fields := strings.Fields(cv.NamaRomaji)
+		if len(fields) > 0 {
+			cv.PanggilanRomaji = fields[0]
+		}
+	}
+	if cv.PanggilanKatakana != "" && cv.PanggilanRomaji != "" {
+		cv.Panggilan = fmt.Sprintf("%s\n%s", cv.PanggilanKatakana, strings.ToUpper(cv.PanggilanRomaji))
+	} else if cv.PanggilanKatakana != "" {
+		cv.Panggilan = cv.PanggilanKatakana
+	}
+
 	if resp.TempatLahir != "" {
 		cv.TempatLahir = resp.TempatLahir
 	}
-	if resp.Alamat != "" {
-		cv.Alamat = resp.Alamat
-	}
-	if resp.Domisili != "" {
-		cv.Domisili = resp.Domisili
-	}
-	if resp.Keahlian != "" {
-		cv.Keahlian = resp.Keahlian
-	}
-	if resp.Kelebihan != "" {
-		cv.Kelebihan = resp.Kelebihan
-	}
-	if resp.Kekurangan != "" {
-		cv.Kekurangan = resp.Kekurangan
-	}
+
+	// Sesuai requirement:
+	// - Alamat (現住所): tetap gunakan bahasa Indonesia asli (jangan digenerate)
+	// - Keahlian (得意・特技), Kelebihan (長所), Kekurangan (短所): samakan dengan CV upload (jangan digenerate)
+
 	if resp.Hobi != "" {
 		cv.Hobi = resp.Hobi
 	}
@@ -148,9 +155,7 @@ func (s *Service) TranslateCV(ctx context.Context, cv *student.CVData) (*student
 
 	for _, jobResp := range resp.Pekerjaan {
 		if jobResp.Index >= 0 && jobResp.Index < len(cv.Pekerjaan) {
-			if jobResp.Perusahaan != "" {
-				cv.Pekerjaan[jobResp.Index].Perusahaan = jobResp.Perusahaan
-			}
+			// Sesuai requirement: Nama perusahaan jangan digenerate oleh AI
 			if jobResp.Rincian != "" {
 				cv.Pekerjaan[jobResp.Index].Rincian = jobResp.Rincian
 			}

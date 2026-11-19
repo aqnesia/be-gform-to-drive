@@ -6,25 +6,33 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 )
 
 type OpenAIProvider struct {
 	apiKey     string
 	model      string
+	baseURL    string
 	httpClient *http.Client
 }
 
-func NewOpenAIProvider(apiKey, model string) *OpenAIProvider {
+func NewOpenAIProvider(apiKey, model, baseURL string) *OpenAIProvider {
 	if model == "" {
 		model = "gpt-4o-mini"
 	}
+	if baseURL == "" {
+		baseURL = "https://api.openai.com/v1"
+	}
+	baseURL = strings.TrimRight(baseURL, "/")
 	return &OpenAIProvider{
-		apiKey: apiKey,
-		model:  model,
+		apiKey:  apiKey,
+		model:   model,
+		baseURL: baseURL,
 		httpClient: &http.Client{
-			Timeout: 45 * time.Second,
+			Timeout: 180 * time.Second,
 		},
 	}
 }
@@ -63,22 +71,60 @@ func (o *OpenAIProvider) Translate(ctx context.Context, payload *TranslationPayl
 		return nil, fmt.Errorf("gagal marshal request openai: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.openai.com/v1/chat/completions", bytes.NewReader(reqBytes))
-	if err != nil {
-		return nil, fmt.Errorf("gagal membuat request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+o.apiKey)
+	baseURL := strings.TrimRight(strings.TrimSpace(o.baseURL), "/")
+	baseURL = strings.TrimSuffix(baseURL, "/chat/completions")
+	url := fmt.Sprintf("%s/chat/completions", baseURL)
+	slog.Info("memanggil LLM API", "provider", o.Name(), "base_url", baseURL, "model", o.model)
 
-	resp, err := o.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("gagal memanggil openai api: %w", err)
-	}
-	defer resp.Body.Close()
+	cleanKey := strings.TrimSpace(o.apiKey)
+	cleanKey = strings.Trim(cleanKey, "\"'")
+	cleanKey = strings.TrimPrefix(cleanKey, "Bearer ")
+	cleanKey = strings.TrimSpace(cleanKey)
 
-	bodyBytes, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
+	const maxRetry = 3
+	var bodyBytes []byte
+	var lastStatus int
+
+	for attempt := 1; attempt <= maxRetry; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBytes))
+		if err != nil {
+			return nil, fmt.Errorf("gagal membuat request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+cleanKey)
+		req.Header.Set("x-api-key", cleanKey)
+
+		resp, err := o.httpClient.Do(req)
+		if err != nil {
+			if attempt < maxRetry {
+				slog.Warn("LLM request gagal, mencoba ulang", "attempt", attempt, "error", err)
+				time.Sleep(time.Duration(attempt*5) * time.Second)
+				continue
+			}
+			return nil, fmt.Errorf("gagal memanggil openai api: %w", err)
+		}
+
+		bodyBytes, _ = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		lastStatus = resp.StatusCode
+
+		if resp.StatusCode == http.StatusOK {
+			break
+		}
+
+		// 503 / 429 = overload, coba lagi
+		if (resp.StatusCode == 503 || resp.StatusCode == 429) && attempt < maxRetry {
+			waitSec := time.Duration(attempt*10) * time.Second
+			slog.Warn("LLM sedang overload, menunggu dan mencoba ulang", "attempt", attempt, "status", resp.StatusCode, "wait", waitSec)
+			time.Sleep(waitSec)
+			continue
+		}
+
 		return nil, fmt.Errorf("openai api error (status %d): %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	if lastStatus != http.StatusOK {
+		return nil, fmt.Errorf("openai api error setelah %d percobaan (status %d): %s", maxRetry, lastStatus, string(bodyBytes))
 	}
 
 	var openAIResp struct {

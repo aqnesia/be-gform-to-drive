@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -11,6 +12,8 @@ type Config struct {
 	LLMProvider       string
 	LLMModel          string
 	LLMAPIKey         string
+	LLMBaseURL        string
+	GoogleTranslateURL string
 	DriveScriptURL    string
 	DriveScriptSecret string
 	GoWAURL           string
@@ -28,6 +31,8 @@ func Load() *Config {
 		LLMProvider:       getEnv("LLM_PROVIDER", "gemini"),
 		LLMModel:          getEnv("LLM_MODEL", "gemini-2.5-flash"),
 		LLMAPIKey:         getEnv("LLM_API_KEY", ""),
+		LLMBaseURL:        getEnv("LLM_BASE_URL", ""),
+		GoogleTranslateURL: getEnv("GOOGLE_TRANSLATE_URL", "http://lpk_aqnesia_g-translate-service:8080"),
 		DriveScriptURL:    getEnv("DRIVE_SCRIPT_URL", ""),
 		DriveScriptSecret: getEnv("DRIVE_SCRIPT_SECRET", ""),
 		GoWAURL:           getEnv("GOWA_URL", ""),
@@ -40,6 +45,8 @@ func Load() *Config {
 
 func getEnv(key, defaultVal string) string {
 	if val, ok := os.LookupEnv(key); ok && val != "" {
+		val = strings.TrimSpace(val)
+		val = strings.Trim(val, "\"'")
 		return val
 	}
 	return defaultVal

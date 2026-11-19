@@ -45,8 +45,13 @@ func (c *Client) SendFailure(ctx context.Context, nama, tahap, errMsg string, t 
 		nama, tahap, t.Format("02/01/2006 15:04:05 WIB"), errMsg,
 	)
 
+	targetPhone := strings.TrimSpace(c.adminNumber)
+	if !strings.Contains(targetPhone, "@") {
+		targetPhone = targetPhone + "@s.whatsapp.net"
+	}
+
 	reqBody := map[string]interface{}{
-		"phone":   c.adminNumber,
+		"phone":   targetPhone,
 		"message": pesan,
 	}
 
@@ -55,14 +60,21 @@ func (c *Client) SendFailure(ctx context.Context, nama, tahap, errMsg string, t 
 		return fmt.Errorf("gagal marshal pesan gowa: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/send-message", c.baseURL)
+	url := fmt.Sprintf("%s/send/message", c.baseURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBytes))
 	if err != nil {
 		return fmt.Errorf("gagal membuat request notifikasi gowa: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if c.authToken != "" {
-		req.Header.Set("Authorization", "Bearer "+c.authToken)
+		if strings.HasPrefix(c.authToken, "Basic ") || strings.HasPrefix(c.authToken, "Bearer ") {
+			req.Header.Set("Authorization", c.authToken)
+		} else if strings.Contains(c.authToken, ":") {
+			parts := strings.SplitN(c.authToken, ":", 2)
+			req.SetBasicAuth(parts[0], parts[1])
+		} else {
+			req.Header.Set("Authorization", "Bearer "+c.authToken)
+		}
 	}
 
 	resp, err := c.httpClient.Do(req)
@@ -77,6 +89,6 @@ func (c *Client) SendFailure(ctx context.Context, nama, tahap, errMsg string, t 
 		return fmt.Errorf("gowa error status: %d", resp.StatusCode)
 	}
 
-	slog.Info("notifikasi kegagalan berhasil dikirim ke whatsapp admin", "target", c.adminNumber)
+	slog.Info("notifikasi kegagalan berhasil dikirim ke whatsapp admin", "target", targetPhone)
 	return nil
 }
